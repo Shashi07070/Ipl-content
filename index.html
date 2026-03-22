@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>IPL Cricket 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Nunito:wght@800;900&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#07020f;font-family:'Nunito',sans-serif;overflow-x:hidden;}
+.bo{font-family:'Black Ops One',sans-serif;}
+.nb{font-family:'Nunito',sans-serif;font-weight:900;}
+input[type=number]::-webkit-inner-spin-button{opacity:1;}
+@keyframes pulse{0%,100%{background-position:0%}50%{background-position:100%}}
+@keyframes shk{0%,100%{transform:rotate(0)}20%{transform:rotate(-3deg)}40%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}80%{transform:rotate(2deg)}}
+@keyframes pop{0%{transform:scale(0) rotate(-12deg);opacity:0}55%{transform:scale(1.18) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes fall{from{transform:translateY(0) rotate(0);opacity:1}to{transform:translateY(110vh) rotate(720deg);opacity:0}}
+@keyframes glow2{0%,100%{opacity:1}50%{opacity:0.65}}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-14px) rotate(4deg)}}
+@keyframes up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scanl{from{background-position:0 0}to{background-position:0 100px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+
+const { useState, useRef } = React;
+
+/* ── TEAMS ── */
+const TEAMS = [
+  { id:0, name:"RCB",  full:"Royal Challengers Bengaluru", color:"#CC0000", accent:"#FFD700", logo:"logos/rcb.png" },
+  { id:1, name:"MI",   full:"Mumbai Indians",              color:"#004BA0", accent:"#00CFFF", logo:"logos/mi.png"  },
+  { id:2, name:"CSK",  full:"Chennai Super Kings",         color:"#FDB913", accent:"#00AEEF", logo:"logos/csk.png" },
+  { id:3, name:"KKR",  full:"Kolkata Knight Riders",       color:"#8B008B", accent:"#FFD700", logo:"logos/kkr.png" },
+  { id:4, name:"DC",   full:"Delhi Capitals",              color:"#0078BC", accent:"#EF1C25", logo:"logos/dc.png"  },
+  { id:5, name:"PBKS", full:"Punjab Kings",                color:"#ED1B24", accent:"#FFCD00", logo:"logos/pbks.png"},
+  { id:6, name:"RR",   full:"Rajasthan Royals",            color:"#E91E8C", accent:"#00D4FF", logo:"logos/rr.png"  },
+  { id:7, name:"SRH",  full:"Sunrisers Hyderabad",         color:"#FF6B00", accent:"#FFD700", logo:"logos/srh.png" },
+  { id:8, name:"LSG",  full:"Lucknow Super Giants",        color:"#00B4D8", accent:"#A8DADC", logo:"logos/lsg.png" },
+  { id:9, name:"GT",   full:"Gujarat Titans",              color:"#1C4E8A", accent:"#00D2FF", logo:"logos/gt.png"  },
+];
+
+/* ── BALL TYPES ── */
+const TYPES = {
+  six:    { label:"SIX!",  icon:"🚀", color:"#FFD700", runs:6, w:14 },
+  four:   { label:"FOUR!", icon:"⚡", color:"#00FF88", runs:4, w:18 },
+  three:  { label:"THREE", icon:"🏃", color:"#00CFFF", runs:3, w:10 },
+  two:    { label:"TWO",   icon:"✌️", color:"#A78BFA", runs:2, w:14 },
+  one:    { label:"ONE",   icon:"↗",  color:"#94A3B8", runs:1, w:20 },
+  dot:    { label:"DOT",   icon:"⬛", color:"#475569", runs:0, w:12 },
+  wicket: { label:"OUT!",  icon:"💀", color:"#FF3333", runs:0, w:12 },
+};
+
+/* ── SOUND ENGINE ── */
+function createSnd(ctx) {
+  const dst = ctx.destination;
+  return {
+    bat() {
+      try {
+        const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate*0.07), ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+        const s=ctx.createBufferSource(), g=ctx.createGain(), f=ctx.createBiquadFilter();
+        f.type="bandpass"; f.frequency.value=900; f.Q.value=0.6;
+        s.buffer=buf; s.connect(f); f.connect(g); g.connect(dst);
+        g.gain.setValueAtTime(0.5,ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.07);
+        s.start();
+      } catch(e){}
+    },
+    six() {
+      try {
+        [[0,"sawtooth",220,880,0.25],[0.05,"sine",1200,2400,0.12]].forEach(([d,type,f1,f2,vol])=>{
+          const o=ctx.createOscillator(),g=ctx.createGain();
+          o.connect(g);g.connect(dst);o.type=type;
+          o.frequency.setValueAtTime(f1,ctx.currentTime+d);
+          o.frequency.exponentialRampToValueAtTime(f2,ctx.currentTime+d+0.35);
+          g.gain.setValueAtTime(vol,ctx.currentTime+d);
+          g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+d+0.55);
+          o.start(ctx.currentTime+d); o.stop(ctx.currentTime+d+0.55);
+        });
+      } catch(e){}
+    },
+    four() {
+      try {
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(dst);o.type="square";
+        o.frequency.setValueAtTime(440,ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(660,ctx.currentTime+0.22);
+        g.gain.setValueAtTime(0.18,ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);
+        o.start();o.stop(ctx.currentTime+0.35);
+      } catch(e){}
+    },
+    wicket() {
+      try {
+        [0,0.07,0.14].forEach(d=>{
+          const o=ctx.createOscillator(),g=ctx.createGain();
+          o.connect(g);g.connect(dst);o.type="triangle";
+          o.frequency.setValueAtTime(200,ctx.currentTime+d);
+          o.frequency.exponentialRampToValueAtTime(55,ctx.currentTime+d+0.22);
+          g.gain.setValueAtTime(0.3,ctx.currentTime+d);
+          g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+d+0.25);
+          o.start(ctx.currentTime+d);o.stop(ctx.currentTime+d+0.25);
+        });
+      } catch(e){}
+    },
+    dot() {
+      try {
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(dst);o.type="sine";o.frequency.value=220;
+        g.gain.setValueAtTime(0.07,ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+        o.start();o.stop(ctx.currentTime+0.12);
+      } catch(e){}
+    },
+    crowd() {
+      try {
+        const buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*0.9),ctx.sampleRate);
+        const d=buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.sin(i/150)*(1-i/d.length);
+        const s=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+        f.type="lowpass";f.frequency.value=700;
+        s.buffer=buf;s.connect(f);f.connect(g);g.connect(dst);
+        g.gain.setValueAtTime(0.18,ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.9);
+        s.start();
+      } catch(e){}
+    }
+  };
+}
+
+/* ── INNINGS GENERATOR ── */
+function genInnings(target) {
+  const pool=Object.entries(TYPES).map(([k,v])=>({...v,type:k}));
+  function pick(noW) {
+    const p=noW?pool.filter(e=>e.type!=="wicket"):pool;
+    const tw=p.reduce((a,b)=>a+b.w,0);
+    let r=Math.random()*tw;
+    for(const e of p){r-=e.w;if(r<=0)return{...e};}
+    return{...p[p.length-1]};
+  }
+  const balls=[]; let runs=0,wickets=0;
+  for(let i=0;i<6;i++){
+    let ev;
+    if(i===5){
+      const need=target-runs;
+      if(need>=6)       ev={...TYPES.six,   type:"six"};
+      else if(need>=4)  ev={...TYPES.four,  type:"four"};
+      else if(need===3) ev={...TYPES.three, type:"three"};
+      else if(need===2) ev={...TYPES.two,   type:"two"};
+      else if(need===1) ev={...TYPES.one,   type:"one"};
+      else              ev={...TYPES.dot,   type:"dot"};
+    } else {
+      ev=pick(wickets>=1);
+      let s=0;
+      while(runs+ev.runs>target+3&&s++<5) ev=pick(wickets>=1);
+    }
+    if(ev.type==="wicket") wickets++;
+    runs+=ev.runs;
+    balls.push({...ev,ballNum:i+1,cumRuns:runs,cumWkts:wickets});
+    if(wickets>=2) break;
+  }
+  return balls;
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ══════════════════════════ MAIN APP ══════════════════════════ */
+function App(){
+  const [screen,setScreen]=useState("setup");
+  const [sel1,setSel1]=useState(0);
+  const [sel2,setSel2]=useState(1);
+  const [score1,setScore1]=useState("45");
+  const [score2,setScore2]=useState("38");
+  const [winnerIdx,setWinnerIdx]=useState(-1);
+
+  const [phase,setPhase]=useState(1);
+  const [history,setHistory]=useState([]);
+  const [curEv,setCurEv]=useState(null);
+  const [showEv,setShowEv]=useState(false);
+  const [evKey,setEvKey]=useState(0);
+  const [ballPos,setBallPos]=useState({x:50,y:62,show:false});
+  const [shake,setShake]=useState(false);
+  const [flashCol,setFlashCol]=useState(null);
+
+  const [r1,setR1]=useState(0);
+  const [w1,setW1]=useState(0);
+  const [r2,setR2]=useState(null);
+  const [w2,setW2]=useState(0);
+
+  const [confetti,setConfetti]=useState([]);
+  const [result,setResult]=useState(null);
+
+  const actx=useRef(null);
+  const snd=useRef(null);
+
+  const t1=TEAMS[sel1], t2=TEAMS[sel2];
+  const batting=phase===1?t1:t2;
+  const bowling=phase===1?t2:t1;
+
+  function audio(){
+    if(!actx.current){
+      actx.current=new(window.AudioContext||window.webkitAudioContext)();
+      snd.current=createSnd(actx.current);
+    }
+    if(actx.current.state==="suspended") actx.current.resume();
+    return snd.current;
+  }
+
+  function play(type){
+    try{
+      const s=audio();
+      s.bat();
+      if(type==="six")    setTimeout(()=>{s.six();s.crowd();},80);
+      else if(type==="four")   setTimeout(()=>s.four(),60);
+      else if(type==="wicket") setTimeout(()=>s.wicket(),60);
+      else if(type==="dot")    setTimeout(()=>s.dot(),40);
+    }catch(e){}
+  }
+
+  async function animBall(ev){
+    let tx=50,ty=15;
+    if(ev.type==="six")    {tx=10+Math.random()*80;ty=4;}
+    else if(ev.type==="four")   {tx=Math.random()<0.5?4:90;ty=30+Math.random()*30;}
+    else if(ev.type==="wicket") {tx=50;ty=12;}
+    else                        {tx=38+Math.random()*24;ty=28+Math.random()*22;}
+    setBallPos({x:50,y:62,show:true});
+    await sleep(40);
+    setBallPos({x:tx,y:ty,show:true});
+    await sleep(520);
+    setBallPos(p=>({...p,show:false}));
+  }
+
+  async function showEvent(ev,key){
+    setCurEv(ev); setEvKey(key); setShowEv(true);
+    setFlashCol(ev.color);
+    await sleep(80); setFlashCol(null);
+    if(ev.type==="wicket"){setShake(true);await sleep(380);setShake(false);}
+    await sleep(680);
+    setShowEv(false); setCurEv(null);
+  }
+
+  async function playInn(arr,inn){
+    for(let i=0;i<arr.length;i++){
+      const ev=arr[i];
+      play(ev.type);
+      await Promise.all([animBall(ev), showEvent(ev,inn*100+i)]);
+      if(inn===1){setR1(ev.cumRuns);setW1(ev.cumWkts);}
+      else       {setR2(ev.cumRuns);setW2(ev.cumWkts);}
+      setHistory(h=>[...h,ev]);
+      await sleep(220);
+    }
+  }
+
+  async function startMatch(){
+    if(winnerIdx===-1){alert("Winner select karo!");return;}
+    audio();
+    const tgt1=Math.max(1,parseInt(score1)||40);
+    const tgt2=Math.max(1,parseInt(score2)||30);
+    const inn1=genInnings(tgt1);
+    const inn2=genInnings(tgt2);
+
+    setR1(0);setW1(0);setR2(null);setW2(0);
+    setHistory([]);setCurEv(null);setShowEv(false);
+    setPhase(1);setConfetti([]);setResult(null);
+    setScreen("game");
+    await sleep(400);
+
+    await playInn(inn1,1);
+    await sleep(800);
+    setPhase(2); setHistory([]);
+    await sleep(400);
+    await playInn(inn2,2);
+    await sleep(500);
+
+    const winner=winnerIdx===0?t1:t2;
+    const final1=inn1[inn1.length-1].cumRuns;
+    const final2=inn2[inn2.length-1].cumRuns;
+    setResult({winner,final1,final2});
+    const cols=[winner.color,"#FFD700","#FF6B00","#fff","#00FF88","#FF69B4"];
+    setConfetti(Array.from({length:80},(_,i)=>({
+      id:i,left:Math.random()*100,color:cols[i%cols.length],
+      delay:Math.random()*1.2,dur:1.3+Math.random()*1.5,
+      size:7+Math.random()*9,round:Math.random()>0.5,rot:Math.random()*360,
+    })));
+    try{audio().crowd();}catch(e){}
+    setScreen("result");
+  }
+
+  function reset(){
+    setScreen("setup");setWinnerIdx(-1);
+    setR1(0);setW1(0);setR2(null);setW2(0);
+    setHistory([]);setCurEv(null);setShowEv(false);
+    setConfetti([]);setFlashCol(null);setShake(false);
+  }
+
+  /* ════ SETUP SCREEN ════ */
+  if(screen==="setup") return (
+    <div style={{minHeight:"100vh",background:"#07020f",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:14,overflowY:"auto"}}>
+
+      {/* IPL Header */}
+      <div style={{background:"linear-gradient(135deg,#001a40,#003B73,#001a40)",border:"3px solid #FFD700",borderRadius:20,padding:"10px 36px",marginBottom:18,textAlign:"center",boxShadow:"0 0 50px rgba(255,215,0,0.35)"}}>
+        <div className="bo" style={{fontSize:64,background:"linear-gradient(135deg,#FFD700,#FF6B00,#FFD700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:12,lineHeight:1.1}}>IPL</div>
+        <div style={{color:"#888",fontSize:10,letterSpacing:4}}>INDIAN PREMIER LEAGUE • 2026</div>
+      </div>
+
+      <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,215,0,0.2)",borderRadius:22,padding:18,width:"100%",maxWidth:420}}>
+        <div className="bo" style={{color:"#FF6B00",fontSize:13,letterSpacing:3,marginBottom:12,textAlign:"center"}}>⚙️ MATCH SETUP</div>
+
+        {/* Team selectors */}
+        {[{label:"🏠 HOME TEAM",selId:sel1,onSel:setSel1},{label:"✈️ AWAY TEAM",selId:sel2,onSel:setSel2}].map(({label,selId,onSel},gi)=>(
+          <div key={gi}>
+            {gi===1&&<div className="bo" style={{textAlign:"center",fontSize:18,background:"linear-gradient(135deg,#FF6B00,#FFD700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:"6px 0"}}>VS</div>}
+            <div className="nb" style={{fontSize:10,color:"#FF6B00",letterSpacing:3,marginBottom:8}}>{label}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+              {TEAMS.map(t=>(
+                <button key={t.id} onClick={()=>onSel(t.id)}
+                  style={{background:selId===t.id?`${t.color}22`:"rgba(255,255,255,0.04)",border:`2px solid ${selId===t.id?t.color:"rgba(255,255,255,0.08)"}`,borderRadius:12,padding:"7px 8px",cursor:"pointer",display:"flex",alignItems:"center",gap:7,boxShadow:selId===t.id?`0 0 14px ${t.color}88`:"none",transition:"all 0.15s"}}>
+                  <img src={t.logo} style={{width:30,height:30,objectFit:"contain"}} alt={t.name}
+                    onError={e=>{e.target.style.display="none";}}/>
+                  <span className="nb" style={{color:selId===t.id?t.accent:"#ccc",fontSize:12}}>{t.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Scores */}
+        <div className="nb" style={{fontSize:10,color:"#FF6B00",letterSpacing:3,margin:"12px 0 8px"}}>📊 FINAL SCORE</div>
+        {[{t:t1,val:score1,set:setScore1},{t:t2,val:score2,set:setScore2}].map(({t,val,set},i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <img src={t.logo} style={{width:26,height:26,objectFit:"contain"}} alt=""/>
+            <span className="nb" style={{color:"#777",fontSize:11,width:46}}>{t.name}</span>
+            <input type="number" value={val} onChange={e=>set(e.target.value)}
+              style={{width:70,background:"rgba(255,255,255,0.07)",border:`2px solid ${t.color}`,borderRadius:10,color:t.accent,fontSize:26,fontFamily:"'Black Ops One',sans-serif",textAlign:"center",padding:"2px 0",outline:"none"}}/>
+            <span style={{color:"#444",fontSize:11}}>runs</span>
+          </div>
+        ))}
+
+        {/* Winner */}
+        <div className="nb" style={{fontSize:10,color:"#FF6B00",letterSpacing:3,margin:"12px 0 8px"}}>🏆 WINNER</div>
+        <div style={{display:"flex",gap:8,marginBottom:18}}>
+          {[t1,t2].map((t,idx)=>(
+            <button key={idx} onClick={()=>setWinnerIdx(idx)}
+              style={{flex:1,padding:"11px 6px",background:winnerIdx===idx?`${t.color}22`:"rgba(255,255,255,0.04)",border:`${winnerIdx===idx?3:2}px solid ${winnerIdx===idx?t.color:"rgba(255,255,255,0.1)"}`,borderRadius:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7,boxShadow:winnerIdx===idx?`0 0 20px ${t.color}88`:"none",transition:"all 0.15s"}}>
+              <img src={t.logo} style={{width:26,height:26,objectFit:"contain"}} alt=""/>
+              <span className="nb" style={{color:winnerIdx===idx?t.accent:"#aaa",fontSize:13}}>{t.name}</span>
+            </button>
+          ))}
+        </div>
+
+        <button onClick={startMatch}
+          style={{width:"100%",padding:15,background:"linear-gradient(135deg,#FF6B00,#FF0055,#FF6B00)",backgroundSize:"200%",border:"none",borderRadius:16,color:"white",fontFamily:"'Black Ops One',sans-serif",fontSize:22,letterSpacing:3,cursor:"pointer",boxShadow:"0 4px 30px rgba(255,0,85,0.55)",animation:"pulse 2s infinite"}}>
+          🏏 START MATCH
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ════ GAME SCREEN ════ */
+  if(screen==="game") return (
+    <div style={{width:"100vw",height:"100vh",background:"#060010",position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",alignItems:"center"}}>
+
+      {/* Flash overlay */}
+      {flashCol&&<div style={{position:"fixed",inset:0,background:flashCol,opacity:0.16,zIndex:999,pointerEvents:"none"}}/>}
+      {/* Scanlines */}
+      <div style={{position:"fixed",inset:0,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.1) 2px,rgba(0,0,0,0.1) 4px)",zIndex:1,pointerEvents:"none"}}/>
+
+      {/* SCOREBOARD */}
+      <div style={{width:"100%",padding:"8px 12px",zIndex:100,flexShrink:0}}>
+        <div style={{background:"linear-gradient(90deg,#001a40,#0d002a,#001a40)",border:"2px solid #FFD700",borderRadius:14,padding:"8px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 0 28px rgba(255,215,0,0.22)"}}>
+          {/* Team 1 */}
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
+            <img src={t1.logo} style={{width:38,height:38,objectFit:"contain",filter:phase===1?`drop-shadow(0 0 8px ${t1.color})`:"none",opacity:phase===1?1:0.45}} alt=""/>
+            <div>
+              <div style={{fontSize:9,color:"#777",letterSpacing:2}}>{t1.name}</div>
+              <div className="bo" style={{fontSize:30,color:phase===1?t1.accent:"#aaa",lineHeight:1}}>
+                {r1}{w1>0&&<span style={{fontSize:13,color:"#555",marginLeft:2}}>/{w1}w</span>}
+              </div>
+            </div>
+          </div>
+          {/* Center */}
+          <div style={{textAlign:"center",padding:"0 8px",flexShrink:0}}>
+            <div className="bo" style={{fontSize:12,background:"linear-gradient(135deg,#FFD700,#FF6B00)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:3}}>IPL</div>
+            <div style={{fontSize:9,color:"#FFD700",letterSpacing:1}}>INN {phase}</div>
+          </div>
+          {/* Team 2 */}
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,flexDirection:"row-reverse"}}>
+            <img src={t2.logo} style={{width:38,height:38,objectFit:"contain",filter:phase===2?`drop-shadow(0 0 8px ${t2.color})`:"none",opacity:phase===2?1:0.45}} alt=""/>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:9,color:"#777",letterSpacing:2}}>{t2.name}</div>
+              <div className="bo" style={{fontSize:30,color:phase===2?t2.accent:"#777",lineHeight:1}}>
+                {r2===null?"—":<span>{r2}{w2>0&&<span style={{fontSize:13,color:"#555",marginLeft:2}}>/{w2}w</span>}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Ball dots */}
+        <div style={{display:"flex",justifyContent:"center",gap:7,marginTop:7}}>
+          {Array.from({length:6},(_,i)=>{
+            const b=history[i];
+            return(
+              <div key={i} style={{width:30,height:30,borderRadius:"50%",background:b?b.color:"rgba(255,255,255,0.06)",border:`2px solid ${b?b.color:"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Black Ops One',sans-serif",fontSize:13,color:"#000",boxShadow:b?`0 0 12px ${b.color}99`:"none",transition:"all 0.3s"}}>
+                {b?(b.type==="wicket"?"W":b.runs===0?"·":b.runs):""}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FIELD */}
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",width:"100%",minHeight:0}}>
+        <div style={{position:"relative",width:"min(80vw,320px)",height:"min(80vw,320px)",borderRadius:"50%",background:"radial-gradient(ellipse at 35% 30%,#1e5c1e,#0d330d 55%,#061806)",border:"4px solid rgba(255,215,0,0.65)",boxShadow:"0 0 70px rgba(0,180,0,0.3),0 0 20px rgba(255,215,0,0.15),inset 0 0 40px rgba(0,0,0,0.5)",animation:shake?"shk 0.4s":"none"}}>
+          <div style={{position:"absolute",inset:"14%",borderRadius:"50%",border:"1px solid rgba(255,255,255,0.06)"}}/>
+          <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"26%",height:"50%",border:"1px solid rgba(255,255,255,0.1)",borderRadius:4}}/>
+
+          {/* Stumps top */}
+          <div style={{position:"absolute",top:"5%",left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
+            {[0,1,2].map(i=><div key={i} style={{width:4,height:20,background:curEv&&curEv.type==="wicket"?"#FF4444":"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",boxShadow:curEv&&curEv.type==="wicket"?"0 0 8px #FF3333":"none"}}/>)}
+          </div>
+          {/* Stumps bottom */}
+          <div style={{position:"absolute",bottom:"5%",left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
+            {[0,1,2].map(i=><div key={i} style={{width:4,height:20,background:"rgba(255,255,255,0.7)",borderRadius:2}}/>)}
+          </div>
+
+          {/* Batting logo */}
+          <div style={{position:"absolute",bottom:"20%",left:"50%",transform:"translateX(-50%)",width:64,height:64,borderRadius:"50%",background:`radial-gradient(circle,${batting.color}55,#000)`,border:`3px solid ${batting.color}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 28px ${batting.color}cc`,zIndex:10}}>
+            <img src={batting.logo} style={{width:44,height:44,objectFit:"contain"}} alt=""/>
+          </div>
+          {/* Bowling logo */}
+          <div style={{position:"absolute",top:"10%",left:"50%",transform:"translateX(-50%)",width:50,height:50,borderRadius:"50%",background:`radial-gradient(circle,${bowling.color}33,#000)`,border:`2px solid ${bowling.color}55`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 14px ${bowling.color}66`,zIndex:10}}>
+            <img src={bowling.logo} style={{width:34,height:34,objectFit:"contain"}} alt=""/>
+          </div>
+
+          {/* Ball */}
+          {ballPos.show&&(
+            <div style={{position:"absolute",left:`${ballPos.x}%`,top:`${ballPos.y}%`,transform:"translate(-50%,-50%)",width:16,height:16,borderRadius:"50%",background:"radial-gradient(circle at 35% 35%,#ff7755,#8b0000)",border:"1.5px solid rgba(255,200,200,0.5)",boxShadow:"0 0 14px rgba(255,50,0,0.8)",transition:"left 0.48s cubic-bezier(0.25,0.46,0.45,0.94),top 0.48s cubic-bezier(0.25,0.46,0.45,0.94)",zIndex:25}}/>
+          )}
+        </div>
+      </div>
+
+      {/* EVENT STRIP — below field, never on logo */}
+      <div style={{width:"100%",height:88,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,pointerEvents:"none"}}>
+        {showEv&&curEv&&(
+          <div key={evKey} style={{textAlign:"center",animation:"pop 0.38s forwards"}}>
+            <div style={{fontSize:32,lineHeight:1}}>{curEv.icon}</div>
+            <div className="bo" style={{fontSize:38,color:curEv.color,textShadow:`0 0 22px ${curEv.color},0 0 44px ${curEv.color}88`,letterSpacing:3,lineHeight:1.1}}>{curEv.label}</div>
+            {curEv.runs>0&&<div className="bo" style={{fontSize:20,color:"white",opacity:0.7}}>+{curEv.runs}</div>}
+          </div>
+        )}
+      </div>
+
+      {/* Wicket skulls */}
+      <div style={{position:"fixed",bottom:6,left:"50%",transform:"translateX(-50%)",display:"flex",gap:10,zIndex:100}}>
+        {[0,1].map(i=>{
+          const fallen=phase===1?w1>i:w2>i;
+          return <div key={i} style={{fontSize:22,filter:fallen?"none":"grayscale(1)",opacity:fallen?1:0.22,transition:"all 0.4s",transform:fallen?"scale(1.2)":"scale(1)"}}>{fallen?"💀":"👤"}</div>;
+        })}
+      </div>
+    </div>
+  );
+
+  /* ════ RESULT SCREEN ════ */
+  if(screen==="result"&&result){
+    const {winner,final1,final2}=result;
+    return(
+      <div style={{minHeight:"100vh",background:"#060010",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16,position:"relative",overflow:"hidden"}}>
+
+        {confetti.map(c=>(
+          <div key={c.id} style={{position:"fixed",left:`${c.left}vw`,top:-20,width:c.size,height:c.size,background:c.color,borderRadius:c.round?"50%":3,animation:`fall ${c.dur}s ${c.delay}s linear forwards`,zIndex:50,pointerEvents:"none",transform:`rotate(${c.rot}deg)`}}/>
+        ))}
+
+        <div style={{animation:"up 0.6s forwards",textAlign:"center",width:"100%",maxWidth:400}}>
+          <div className="bo" style={{fontSize:52,background:"linear-gradient(135deg,#FFD700,#FF6B00,#FFD700)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:8,marginBottom:2}}>IPL</div>
+          <div style={{color:"#555",fontSize:10,letterSpacing:4,marginBottom:20}}>2026 MATCH RESULT</div>
+
+          <div style={{background:`linear-gradient(135deg,${winner.color}20,${winner.accent}10,${winner.color}20)`,border:`3px solid ${winner.color}`,borderRadius:28,padding:"24px 20px",marginBottom:14,boxShadow:`0 0 70px ${winner.color}55`,animation:"glow2 2s infinite"}}>
+            <div style={{fontSize:11,color:"#888",letterSpacing:4,marginBottom:10}}>🏆 WINNER</div>
+            <img src={winner.logo} style={{width:88,height:88,objectFit:"contain",animation:"bob 1.8s infinite",filter:`drop-shadow(0 0 22px ${winner.color})`}} alt=""/>
+            <div className="bo" style={{fontSize:48,color:winner.accent,letterSpacing:4,textShadow:`0 0 40px ${winner.accent}`,marginTop:8,lineHeight:1}}>{winner.name}</div>
+            <div style={{color:"#666",fontSize:11,letterSpacing:2,marginTop:4}}>{winner.full}</div>
+          </div>
+
+          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:20,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:18}}>
+            {[{t:t1,r:final1},{t:t2,r:final2}].map(({t,r},i)=>(
+              <div key={i} style={{textAlign:"center",flex:1}}>
+                <img src={t.logo} style={{width:42,height:42,objectFit:"contain",filter:t.id===winner.id?`drop-shadow(0 0 10px ${t.color})`:"grayscale(0.6)",opacity:t.id===winner.id?1:0.5}} alt=""/>
+                <div style={{fontSize:9,color:"#666",letterSpacing:2,margin:"4px 0"}}>{t.name}</div>
+                <div className="bo" style={{fontSize:30,color:t.id===winner.id?t.accent:"#555"}}>{r}</div>
+                <div style={{fontSize:9,color:"#444"}}>runs</div>
+              </div>
+            ))}
+            <div className="bo" style={{fontSize:14,color:"#333",flexShrink:0}}>VS</div>
+          </div>
+
+          <button onClick={reset} style={{padding:"13px 40px",background:"linear-gradient(135deg,#FF6B00,#FF0055)",border:"none",borderRadius:16,color:"white",fontFamily:"'Black Ops One',sans-serif",fontSize:18,letterSpacing:3,cursor:"pointer",boxShadow:"0 4px 30px rgba(255,0,85,0.5)"}}>
+            🔄 NEW MATCH
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
